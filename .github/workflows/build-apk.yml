@@ -1,30 +1,41 @@
-name: Generate Android Folder
+name: Build Android APK (Ultra Fast)
 on:
   push:
     branches: [ main ]
 
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          # 빌드 속도를 위해 Gradle 캐시를 활성화합니다.
+          cache: 'gradle'
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Run Prebuild
-        # 이 명령어가 프로젝트의 android 폴더 뼈대를 서버에서 만듭니다.
-        run: npx expo prebuild --platform android
+      - name: Build APK
+        # 이미 올라온 android 폴더를 사용하여 바로 빌드합니다.
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
-      - name: Upload Android Folder
-        # 생성된 android 폴더를 우리가 다운로드할 수 있게 보관합니다.
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: generated-android-folder
-          path: android/
+          name: server-time-clicker-apk
+          path: android/app/build/outputs/apk/release/*.apk
