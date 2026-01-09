@@ -15,20 +15,18 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # 빌드 속도를 위해 Gradle 캐시를 활성화합니다.
           cache: 'gradle'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        # lock 파일이 없어도 작동하는 install 명령어로 변경
+        run: npm install
 
       - name: Build APK
-        # 이미 올라온 android 폴더를 사용하여 바로 빌드합니다.
         run: |
           cd android
           chmod +x gradlew
