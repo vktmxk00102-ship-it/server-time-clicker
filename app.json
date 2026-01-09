@@ -5,14 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true
+    "splash": {
+      "backgroundColor": "#ffffff"
     },
     "android": {
-      "package": "com.vktmxk.servertime"
+      "package": "com.vktmxk.servertime",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
     }
   }
 }
+

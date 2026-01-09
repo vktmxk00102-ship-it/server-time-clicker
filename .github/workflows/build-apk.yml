@@ -25,10 +25,10 @@ jobs:
         run: npm install
 
       - name: Build with Gradle
-        # Expo 프로젝트를 네이티브 안드로이드 프로젝트로 변환 후 빌드하는 방식
+        # 이전 실패 기록을 지우기 위해 --clean과 gradlew clean을 추가했습니다.
         run: |
-          npx expo prebuild --platform android
-          cd android && ./gradlew assembleRelease
+          npx expo prebuild --platform android --clean
+          cd android && ./gradlew clean assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
