@@ -1,20 +1,14 @@
-name: Build Android APK
+name: Generate Android Folder
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,32 +18,13 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      # 1. app.json의 변경사항을 체크하기 위한 캐시 설정
-      - name: Check app.json changes
-        id: app-json-cache
-        uses: actions/cache@v4
-        with:
-          path: android/.cleanstamp  # 임의의 체크용 파일 경로
-          key: ${{ runner.os }}-app-json-${{ hashFiles('app.json') }}
+      - name: Run Prebuild
+        # 이 명령어가 프로젝트의 android 폴더 뼈대를 서버에서 만듭니다.
+        run: npx expo prebuild --platform android
 
-      # 2. 빌드 실행 (app.json이 바뀌었을 때만 clean 수행)
-      - name: Build with Gradle
-        run: |
-          # 캐시가 없으면(app.json이 바뀌면) clean 모드로 실행
-          if [ "${{ steps.app-json-cache.outputs.cache-hit }}" != 'true' ]; then
-            echo "app.json changed! Running CLEAN build..."
-            npx expo prebuild --platform android --clean
-            cd android && ./gradlew clean assembleRelease
-            # 캐시 생성을 위해 체크용 파일 생성
-            touch .cleanstamp
-          else
-            echo "No changes in app.json. Running FAST build..."
-            npx expo prebuild --platform android
-            cd android && ./gradlew assembleRelease
-          fi
-
-      - name: Upload APK
+      - name: Upload Android Folder
+        # 생성된 android 폴더를 우리가 다운로드할 수 있게 보관합니다.
         uses: actions/upload-artifact@v4
         with:
-          name: server-time-clicker-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: generated-android-folder
+          path: android/
