@@ -14,10 +14,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # cache 설정을 지웠습니다. (lock 파일 에러 방지)
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          # EAS CLI를 서버에 직접 설치합니다.
+          npm install -g eas-cli
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
@@ -26,6 +28,4 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK on EAS
-        # --non-interactive: 서버에서 자동으로 진행하도록 설정
-        # --no-wait: 빌드를 걸어놓고 완료를 기다리지 않음 (GitHub 시간 절약)
         run: eas build --platform android --profile preview --non-interactive --no-wait
