@@ -5,6 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "owner": "vktmxk", 
+    "extra": {
+      "eas": {
+        "projectId": "7cb5f79d-5290-4ee6-a93d-3029901a4025"
+      }
+    },
     "splash": {
       "backgroundColor": "#ffffff"
     },
@@ -16,4 +22,3 @@
     }
   }
 }
-
