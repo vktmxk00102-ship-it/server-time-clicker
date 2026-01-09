@@ -5,7 +5,7 @@ import { StyleSheet, Text, View, TouchableOpacity, TextInput } from 'react-nativ
 export default function App() {
   const [serverTime, setServerTime] = useState(null);
   const [offset, setOffset] = useState(0);
-  const [targetTime, setTargetTime] = useState('10:00:00'); // 목표 시간 설정
+  const [targetTime, setTargetTime] = useState('10:00:00'); // 목표 시간 설정1
 
   // 1. 서버 시간 동기화 (ES8 async/await)
   const syncTime = async () => {
