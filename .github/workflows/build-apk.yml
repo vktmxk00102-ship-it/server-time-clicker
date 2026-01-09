@@ -1,4 +1,4 @@
-name: Build Android APK (Ultra Fast)
+name: EAS Build
 on:
   push:
     branches: [ main ]
@@ -10,30 +10,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install Dependencies
-        # lock 파일이 없어도 작동하는 install 명령어로 변경
         run: npm install
 
-      - name: Build APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
         with:
-          name: server-time-clicker-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK on EAS
+        run: eas build --platform android --profile preview --non-interactive
