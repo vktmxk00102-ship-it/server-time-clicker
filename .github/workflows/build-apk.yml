@@ -24,11 +24,29 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      # 1. app.json의 변경사항을 체크하기 위한 캐시 설정
+      - name: Check app.json changes
+        id: app-json-cache
+        uses: actions/cache@v4
+        with:
+          path: android/.cleanstamp  # 임의의 체크용 파일 경로
+          key: ${{ runner.os }}-app-json-${{ hashFiles('app.json') }}
+
+      # 2. 빌드 실행 (app.json이 바뀌었을 때만 clean 수행)
       - name: Build with Gradle
-        # 이전 실패 기록을 지우기 위해 --clean과 gradlew clean을 추가했습니다.
         run: |
-          npx expo prebuild --platform android --clean
-          cd android && ./gradlew clean assembleRelease
+          # 캐시가 없으면(app.json이 바뀌면) clean 모드로 실행
+          if [ "${{ steps.app-json-cache.outputs.cache-hit }}" != 'true' ]; then
+            echo "app.json changed! Running CLEAN build..."
+            npx expo prebuild --platform android --clean
+            cd android && ./gradlew clean assembleRelease
+            # 캐시 생성을 위해 체크용 파일 생성
+            touch .cleanstamp
+          else
+            echo "No changes in app.json. Running FAST build..."
+            npx expo prebuild --platform android
+            cd android && ./gradlew assembleRelease
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

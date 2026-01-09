@@ -39,7 +39,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   title: { color: '#888', fontSize: 18 },
-  timeText: { color: '#00FF00', fontSize: 40, fontWeight: 'bold', marginVertical: 30 },
+  timeText: { color: '#FFD700', fontSize: 40, fontWeight: 'bold', marginVertical: 30 },
   button: { backgroundColor: '#1E90FF', padding: 15, borderRadius: 10 },
   btnText: { color: '#fff', fontWeight: 'bold' }
 });
