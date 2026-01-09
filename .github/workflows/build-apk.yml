@@ -29,3 +29,5 @@ jobs:
 
       - name: Build APK on EAS
         run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Build APK on EAS
+        run: eas build --platform android --profile preview --non-interactive --no-wait --auto-generate-keystore
