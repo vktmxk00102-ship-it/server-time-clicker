@@ -32,3 +32,13 @@ jobs:
           npx expo export
           # 실제 네이티브 빌드를 원할 경우 여기에 eas build 명령어를 추가합니다.
           # 지금은 설정 확인을 위해 기본 빌드 단계만 구성합니다.
+      # 맨 아래에 이 내용을 추가하세요
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-time-clicker-apk
+          path: |
+            # Expo 빌드 결과물이 생성되는 경로입니다. 
+            # 로컬 빌드 설정에 따라 경로가 다를 수 있으니 가장 일반적인 경로를 넣습니다.
+            android/app/build/outputs/apk/release/*.apk
+            *.apk 
