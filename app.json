@@ -2,7 +2,7 @@
   "expo": {
     "name": "server-time-clicker",
     "slug": "server-time-clicker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "owner": "vktmxk",
     "extra": {
       "eas": {
