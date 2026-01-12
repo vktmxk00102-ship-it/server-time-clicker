@@ -6,7 +6,6 @@
       },
       "credentialsSource": "remote",
       "distribution": "internal"
-    },
-    "production": {}
+    }
   }
 }
