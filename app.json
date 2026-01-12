@@ -1,24 +1,26 @@
 {
   "expo": {
-    "name": "Server Time Clicker",
+    "name": "server-time-clicker",
     "slug": "server-time-clicker",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "owner": "vktmxk", 
+    "owner": "vktmxk",
     "extra": {
       "eas": {
         "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4"
       }
     },
-    "splash": {
-      "backgroundColor": "#ffffff"
-    },
     "android": {
       "package": "com.vktmxk.servertime",
-      "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
-      }
-    }
+      "permissions": [
+        "SYSTEM_ALERT_WINDOW",
+        "BIND_ACCESSIBILITY_SERVICE",
+        "QUERY_ALL_PACKAGES",
+        "INTERNET"
+      ],
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "plugins": [
+      "expo-localization"
+    ]
   }
 }

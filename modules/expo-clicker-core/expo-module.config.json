@@ -1,0 +1,10 @@
+{
+  "platforms": {
+    "android": {
+      "package": "expo.modules.clickercore",
+      "modules": [
+        "ClickerCoreModule"
+      ]
+    }
+  }
+}

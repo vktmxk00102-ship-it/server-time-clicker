@@ -4,8 +4,9 @@
       "android": {
         "buildType": "apk"
       },
-      "credentialsSource": "remote"
-    },
-    "production": {}
+      "credentialsSource": "remote",
+      "cache": true,
+      "distribution": "internal"
+    }
   }
 }
