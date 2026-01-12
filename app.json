@@ -3,6 +3,7 @@
     "name": "server-time-clicker",
     "slug": "server-time-clicker",
     "version": "1.0.0",
+    "owner": "vktmxk",
     "extra": {
       "eas": {
         "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4"
@@ -18,7 +19,17 @@
     },
     "plugins": [
       "expo-localization",
-      "expo-build-properties"
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ]
     ]
   }
 }

@@ -11,13 +11,20 @@ public class ClickerCoreModule extends Module {
   public ModuleDefinition definition() {
     Name("ClickerCore");
 
-    // PIP 시작 명령
     Function("startOverlay", () -> {
-        Intent intent = new Intent(getContext(), OverlayService.class);
-        getContext().startService(intent);
+        if (!Settings.canDrawOverlays(getContext())) {
+            // 권한이 없으면 설정 화면으로 이동
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+        } else {
+            // 권한이 있으면 서비스 시작
+            Intent intent = new Intent(getContext(), OverlayService.class);
+            getContext().startService(intent);
+        }
     });
 
-    // 접근성 설정 화면 열기
     Function("openAccessibilitySettings", () -> {
         Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
