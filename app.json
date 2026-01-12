@@ -21,7 +21,7 @@
       "expo-localization",
       "expo-asset",
       [
-        "expo-build-properties",
+        "expo-build-properties" ,
         {
           "android": {
             "compileSdkVersion": 34,
