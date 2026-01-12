@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          #cache: 'npm'
 
       # 3. Expo 환경 설정 (EAS 서버 캐시 활성화)
       - name: 🏗 Setup Expo
