@@ -1,7 +1,9 @@
 name: Optimized EAS Build
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main  # 브랜치명이 다르면 수정하세요 (예: master)
 
 jobs:
   build:
@@ -10,9 +12,9 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # 변경 사항 감지를 위해 필요
+          fetch-depth: 2
 
-      # 1. app.json이 수정되었는지 감지 (클린 빌드 여부 결정용)
+      # 1. app.json 변경 감지 (tj-actions/changed-files 사용)
       - name: 🔍 Check for app.json changes
         id: check_changes
         uses: tj-actions/changed-files@v44
@@ -20,14 +22,13 @@ jobs:
           files: |
             app.json
 
-      # 2. Node.js 설정 및 npm 캐시 (매번 새로 다운로드하지 않음)
+      # 2. Node.js 설정 (캐시 옵션 제거로 lock파일 에러 방지)
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          #cache: 'npm'
 
-      # 3. Expo 환경 설정 (EAS 서버 캐시 활성화)
+      # 3. Expo/EAS 환경 설정
       - name: 🏗 Setup Expo
         uses: expo/expo-github-action@v8
         with:
@@ -38,13 +39,13 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      # 4. 조건부 빌드 (app.json이 바뀌었으면 --clear-cache 추가)
+      # 4. 조건부 빌드 (npx eas-cli 사용하여 경로 에러 해결)
       - name: 🚀 Run EAS Build
         run: |
           if [ "${{ steps.check_changes.outputs.any_changed }}" == "true" ]; then
             echo "📢 app.json 변경 감지: 클린 빌드 수행"
-            eas build --platform android --profile preview --non-interactive --no-wait --clear-cache
+            npx eas-cli build --platform android --profile preview --non-interactive --no-wait --clear-cache
           else
             echo "✅ app.json 변경 없음: 일반 빌드 수행"
-            eas build --platform android --profile preview --non-interactive --no-wait
+            npx eas-cli build --platform android --profile preview --non-interactive --no-wait
           fi
