@@ -1,0 +1,13 @@
+{
+  "name": "expo-clicker-core",
+  "version": "1.0.0",
+  "description": "Native module for server time clicker",
+  "main": "index.js",
+  "expo": {
+    "autolinking": {
+      "platforms": [
+        "android"
+      ]
+    }
+  }
+}
