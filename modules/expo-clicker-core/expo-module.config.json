@@ -1,5 +1,8 @@
 {
-  "platforms": ["android"],
+  "name": "expo-clicker-core",
+  "platforms": [
+    "android"
+  ],
   "android": {
     "package": "expo.modules.clickercore",
     "modules": [

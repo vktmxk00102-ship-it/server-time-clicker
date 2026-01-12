@@ -17,7 +17,8 @@
 "expo-modules-core": "~2.1.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "expo-clicker-core": "file:./modules/expo-clicker-core"
   },
   "private": true
 }
