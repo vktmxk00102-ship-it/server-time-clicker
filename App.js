@@ -6,9 +6,11 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView, 
-  Alert 
+  Alert,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
-// 새로 만든 커스텀 모듈을 패키지처럼 불러옵니다.
+// 커스텀 네이티브 모듈 불러오기
 import ClickerCore from 'expo-clicker-core';
 
 export default function App() {
@@ -17,40 +19,50 @@ export default function App() {
   const [serverTime, setServerTime] = useState(new Date());
   const [targetTime, setTargetTime] = useState({ h: '10', m: '00', s: '00' });
 
-  // 서버 시간 업데이트 시뮬레이션 (1초마다)
+  // 1. 앱 실행 시 안드로이드 13~16 필수 알림 권한 요청
   useEffect(() => {
+    const requestPermission = async () => {
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        try {
+          await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          );
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+    };
+    requestPermission();
+
     const timer = setInterval(() => setServerTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // [지정 및 실행] 버튼 클릭 시 호출
+  // 2. [지정 및 실행] - 오버레이 버튼 띄우기
   const handleStart = async () => {
     try {
-      // ClickerCore가 정상적으로 로드되었는지 확인
       if (ClickerCore && typeof ClickerCore.startOverlay === 'function') {
+        // 네이티브 모듈 호출 (권한 없으면 권한 설정창으로, 있으면 서비스 시작)
         ClickerCore.startOverlay();
       } else {
-        Alert.alert(
-          "네이티브 모듈 인식 실패",
-          "빌드 과정에서 Java 코드가 포함되지 않았습니다. package.json과 index.js 설정을 확인하세요."
-        );
+        Alert.alert("연결 오류", "네이티브 모듈을 찾을 수 없습니다. 빌드 로그를 확인하세요.");
       }
     } catch (e) {
       console.error(e);
-      Alert.alert("실행 에러", "네이티브 기능을 호출하는 중 오류가 발생했습니다.");
+      Alert.alert("실행 에러", "서비스 시작 중 오류가 발생했습니다.");
     }
   };
 
-  // [타겟 앱 선택] 클릭 시 호출 (접근성 권한 화면)
+  // 3. [타겟 앱 선택] - 접근성 설정 화면 이동
   const handleOpenSettings = () => {
     try {
       if (ClickerCore && typeof ClickerCore.openAccessibilitySettings === 'function') {
         ClickerCore.openAccessibilitySettings();
       } else {
-        Alert.alert("알림", "설정 화면을 열 수 있는 모듈이 없습니다.");
+        Alert.alert("알림", "접근성 설정 모듈이 없습니다.");
       }
     } catch (e) {
-      Alert.alert("에러", "설정 화면 이동에 실패했습니다.");
+      Alert.alert("에러", "설정 화면 이동 실패");
     }
   };
 
@@ -58,7 +70,7 @@ export default function App() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>🚀 서버 시간 클릭커</Text>
 
-      {/* 모드 선택 탭 */}
+      {/* 모드 선택 */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
           onPress={() => setMode('site')} 
@@ -74,7 +86,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      {/* 입력 섹션 */}
+      {/* 입력 영역 */}
       <View style={styles.inputSection}>
         {mode === 'site' ? (
           <View style={styles.inputWrapper}>
@@ -87,12 +99,12 @@ export default function App() {
           </View>
         ) : (
           <TouchableOpacity style={styles.appPicker} onPress={handleOpenSettings}>
-            <Text style={styles.appPickerText}>타겟 앱 선택 (접근성 설정 이동)</Text>
+            <Text style={styles.appPickerText}>타겟 앱 선택 (접근성 서비스 활성화)</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 서버 시간 표시 카드 */}
+      {/* 시간 표시 */}
       <View style={styles.timeCard}>
         <Text style={styles.timeLabel}>현재 서버 시간 (예상)</Text>
         <Text style={styles.timeText}>
@@ -118,7 +130,7 @@ export default function App() {
       </TouchableOpacity>
 
       <Text style={styles.footerNote}>
-        * 반드시 APK 설치 후 실행해야 네이티브 기능이 작동합니다.
+        * 안드로이드 16: 알림 권한과 '다른 앱 위에 표시' 권한이 필수입니다.
       </Text>
     </ScrollView>
   );
