@@ -5,9 +5,7 @@
     "version": "1.0.0",
     "owner": "vktmxk",
     "extra": {
-      "eas": {
-        "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4"
-      }
+      "eas": { "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4" }
     },
     "android": {
       "package": "com.vktmxk.servertime",
@@ -27,8 +25,7 @@
           "android": {
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0",
-            "extraProguardRules": "-keep class expo.modules.clickercore.** { *; }"
+            "buildToolsVersion": "35.0.0"
           }
         }
       ]
