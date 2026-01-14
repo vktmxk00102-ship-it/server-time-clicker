@@ -1,12 +1,8 @@
 {
   "name": "expo-clicker-core",
-  "platforms": [
-    "android"
-  ],
+  "platforms": ["android"],
   "android": {
     "package": "expo.modules.clickercore",
-    "modules": [
-      "ClickerCoreModule"
-    ]
+    "modules": ["ClickerCoreModule"]
   }
 }
