@@ -5,5 +5,5 @@
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
-    android:description="@string/accessibility_description"
+    android:description="서버 시간에 맞춰 자동 클릭 및 오버레이 기능을 수행합니다."
     android:notificationTimeout="100" />
