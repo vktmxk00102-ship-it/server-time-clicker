@@ -19,7 +19,7 @@
     },
     "plugins": [
       "expo-localization",
-      "expo-asset",
+      "expo-asset" ,
       [
         "expo-build-properties",
         {
