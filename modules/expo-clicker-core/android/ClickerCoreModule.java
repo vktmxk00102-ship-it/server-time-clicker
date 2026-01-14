@@ -13,13 +13,11 @@ public class ClickerCoreModule extends Module {
 
     Function("startOverlay", () -> {
         if (!Settings.canDrawOverlays(getContext())) {
-            // 권한이 없으면 설정 화면으로 이동
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + getContext().getPackageName()));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
         } else {
-            // 권한이 있으면 서비스 시작
             Intent intent = new Intent(getContext(), OverlayService.class);
             getContext().startService(intent);
         }

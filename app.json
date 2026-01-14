@@ -2,12 +2,10 @@
   "expo": {
     "name": "server-time-clicker",
     "slug": "server-time-clicker",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "owner": "vktmxk",
     "extra": {
-      "eas": {
-        "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4"
-      }
+      "eas": { "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4" }
     },
     "android": {
       "package": "com.vktmxk.servertime",
