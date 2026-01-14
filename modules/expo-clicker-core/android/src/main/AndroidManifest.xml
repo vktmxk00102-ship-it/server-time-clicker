@@ -12,14 +12,14 @@
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_CATEGORY" 
-                      android:value="Automation tool for server-time based actions" />
+                      android:value="Automation and utility tools for timing synchronization" />
         </service>
 
         <service
             android:name=".ClickerAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"
-            android:label="서버시간 클릭커 서비스">
+            android:label="서버시간 클릭커">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
