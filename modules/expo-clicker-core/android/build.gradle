@@ -2,7 +2,8 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace "expo.modules.clickercore"
+    // 에러 메시지에서 말하는 'Gradle package name'을 정의합니다.
+    namespace "expo.modules.clickercore" 
     compileSdkVersion 35
 
     defaultConfig {
@@ -10,12 +11,14 @@ android {
         targetSdkVersion 35
     }
 
-    lintOptions {
-        abortOnError false
+    // 최신 RN 버전과의 호환성을 위해 추가
+    buildFeatures {
+        buildConfig true
     }
 }
 
 dependencies {
+    // Expo 52/RN 0.76 환경의 핵심 라이브러리 연결
     implementation project(':expo-modules-core')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
