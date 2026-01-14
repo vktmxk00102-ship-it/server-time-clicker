@@ -1,4 +1,5 @@
-{  "name": "expo-clicker-core",
+{
+  "name": "expo-clicker-core",
   "platforms": [
     "android"
   ],
