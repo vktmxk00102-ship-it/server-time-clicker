@@ -5,14 +5,17 @@
     "version": "1.0.0",
     "owner": "vktmxk",
     "extra": {
-      "eas": { "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4" }
+      "eas": {
+        "projectId": "02c28195-a28d-4d6b-8202-fe590ce61ee4"
+      }
     },
     "android": {
       "package": "com.vktmxk.servertime",
       "permissions": [
         "SYSTEM_ALERT_WINDOW",
         "BIND_ACCESSIBILITY_SERVICE",
-        "QUERY_ALL_PACKAGES"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_SPECIAL_USE"
       ]
     },
     "plugins": [
@@ -22,9 +25,10 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0"
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "extraProguardRules": "-keep class expo.modules.clickercore.** { *; }"
           }
         }
       ]
