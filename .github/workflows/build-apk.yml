@@ -18,6 +18,10 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # [확인 결과 추가됨] 실제 안드로이드 빌드 속도를 2배 이상 높여주는 단계입니다.
+      - name: 🐘 Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
       - name: 📦 Install dependencies
         run: |
           npm install

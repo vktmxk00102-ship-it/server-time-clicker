@@ -10,7 +10,6 @@ class ClickerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ClickerModule")
 
-    // 1. 오버레이 서비스 제어
     Function("showOverlay") { mode: String ->
       val context = appContext.reactContext ?: return@Function false
       val intent = Intent(context, OverlayService::class.java).apply {
@@ -18,46 +17,36 @@ class ClickerModule : Module() {
         putExtra("mode", mode)
       }
       context.startService(intent)
-      true
+      return@Function true
     }
 
     Function("hideOverlay") {
       val context = appContext.reactContext ?: return@Function false
       context.stopService(Intent(context, OverlayService::class.java))
-      true
+      return@Function true
     }
 
-    // 2. 좌표 및 ID 캡처 상태 업데이트
     Function("updateTargetCoords") { x: Float, y: Float ->
       SharedData.targetX = x
       SharedData.targetY = y
-      true
+      return@Function true
     }
 
-    Function("startIdCapture") {
-      SharedData.isCaptureMode = true
-      true
-    }
-
-    Function("stopIdCapture") {
-      SharedData.isCaptureMode = false
-      true
-    }
-
-    // 3. 실제 클릭 실행 (JS에서 호출하는 핵심 함수)
     Function("performClickAt") { x: Float, y: Float ->
       ClickerAccessibilityService.instance?.performClickAt(x, y)
-      true
+      return@Function true
     }
 
-    // 4. 권한 설정창 열기
     Function("openSettings") {
       val context = appContext.reactContext ?: return@Function false
       val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       context.startActivity(intent)
-      true
+      return@Function true
     }
+    
+    Function("startIdCapture") { SharedData.isCaptureMode = true; return@Function true }
+    Function("stopIdCapture") { SharedData.isCaptureMode = false; return@Function true }
   }
 }
 
