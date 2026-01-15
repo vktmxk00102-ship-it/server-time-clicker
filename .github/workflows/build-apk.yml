@@ -29,9 +29,11 @@ jobs:
       - name: 🚀 Build APK (Local)
         run: |
           export NODE_ENV=production
+          # 명령어 수정: eas build --local 사용
           eas build --local --platform android --profile preview --non-interactive
         env:
           NODE_ENV: production
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # 인증 토큰 주입
 
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
