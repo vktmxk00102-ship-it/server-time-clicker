@@ -16,12 +16,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm' # 최적화 포인트 1: 캐싱
+          cache: 'npm'
 
       - name: 📦 Install dependencies
         run: |
           npm install
-          npx expo install expo-build-properties # 최적화 포인트 4: 빌드 플러그인 강제 설치
+          npx expo install expo-build-properties
 
       - name: 🛠 Setup EAS
         run: npm install -g eas-cli
@@ -29,12 +29,12 @@ jobs:
       - name: 🚀 Build APK (Local)
         run: |
           export NODE_ENV=production
-          npx eas-build-local --platform android --profile preview --non-interactive
+          eas build --local --platform android --profile preview --non-interactive
         env:
-          NODE_ENV: production # 최적화 포인트 2: 환경변수 고정
+          NODE_ENV: production
 
       - name: 📤 Upload APK Artifact
-        uses: actions/upload-artifact@v4 # 최적화 포인트 3: 빌드 결과물 저장
+        uses: actions/upload-artifact@v4
         with:
           name: server-time-clicker-apk
-          path: ./*.apk # 생성된 APK 파일을 깃허브 페이지에서 다운로드 가능하게 함
+          path: ./*.apk
