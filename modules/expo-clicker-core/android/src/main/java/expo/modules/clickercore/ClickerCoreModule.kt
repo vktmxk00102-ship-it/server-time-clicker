@@ -5,6 +5,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import android.content.Intent
 import android.provider.Settings
 import android.net.Uri
+import android.os.Build
 
 class ClickerModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -16,7 +17,12 @@ class ClickerModule : Module() {
         action = "SHOW_OVERLAY"
         putExtra("mode", mode)
       }
-      context.startService(intent)
+      
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+      } else {
+          context.startService(intent)
+      }
       return@Function true
     }
 
