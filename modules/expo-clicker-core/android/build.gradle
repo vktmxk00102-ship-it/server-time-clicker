@@ -10,9 +10,12 @@ android {
         targetSdkVersion 35
     }
 
-    // [추가] 자바 폴더 안에 있는 코틀린 소스를 인식하게 하는 설정
+    // [핵심 수정] 코틀린 파일이 src/main/java 폴더에도 있음을 명시적으로 선언
     sourceSets {
-        main.java.srcDirs += 'src/main/java'
+        main {
+            java.srcDirs = ['src/main/java']
+            kotlin.srcDirs = ['src/main/java', 'src/main/kotlin']
+        }
     }
 
     buildFeatures {
