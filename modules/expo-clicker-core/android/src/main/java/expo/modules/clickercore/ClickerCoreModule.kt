@@ -11,28 +11,40 @@ import java.net.URL
 import java.net.HttpURLConnection
 
 class ClickerCoreModule : Module() {
+  // 모듈의 수명 주기에 맞춘 코루틴 스코프 정의
+  private val moduleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
   override fun definition() = ModuleDefinition {
     Name("ClickerCoreModule")
 
-    // 서버 시간 동기화 로직 (Latency 보정 포함)
+    // 서버 시간 동기화 로직 (오류 수정됨)
     AsyncFunction("getServerTimeOffset") { targetUrl: String ->
-        return@AsyncFunction withContext(Dispatchers.IO) {
+        // 1. CompletableDeferred를 사용하여 비동기 작업의 결과를 기다림
+        val result = CompletableDeferred<Double>()
+        
+        moduleScope.launch {
             try {
                 val start = System.currentTimeMillis()
                 val connection = URL(targetUrl).openConnection() as HttpURLConnection
                 connection.requestMethod = "HEAD"
                 connection.connectTimeout = 3000
                 connection.connect()
+                
                 val serverDate = connection.date
                 val end = System.currentTimeMillis()
                 
+                // 네트워크 지연 시간(Latency) 보정
                 val latency = (end - start) / 2
                 val offset = (serverDate + latency) - end
-                return@withContext offset.toDouble()
+                
+                result.complete(offset.toDouble())
             } catch (e: Exception) {
-                return@withContext 0.0
+                result.complete(0.0)
             }
         }
+        
+        // 2. 비동기 작업의 결과를 반환
+        return@AsyncFunction result.await()
     }
 
     Function("showOverlay") { mode: String ->
@@ -40,8 +52,11 @@ class ClickerCoreModule : Module() {
       val intent = Intent(context, OverlayService::class.java).apply {
           putExtra("mode", mode)
       }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-      else context.startService(intent)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+      } else {
+          context.startService(intent)
+      }
       return@Function true
     }
 
@@ -51,7 +66,7 @@ class ClickerCoreModule : Module() {
       // 1. 클릭 실행
       ClickerAccessibilityService.instance?.performClickAt(x, y)
       
-      // 2. [방식 A] 즉시 은신 (오버레이 종료)
+      // 2. 실행 즉시 은신 (오버레이 종료)
       context.stopService(Intent(context, OverlayService::class.java))
       return@Function true
     }
