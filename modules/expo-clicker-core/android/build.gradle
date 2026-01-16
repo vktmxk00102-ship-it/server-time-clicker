@@ -1,53 +1,14 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-
 android {
-    // 매니페스트 에러를 방지하기 위한 네임스페이스 정의
     namespace "expo.modules.clickercore"
     compileSdkVersion 35
-
-    defaultConfig {
-        minSdkVersion 24 // 안드로이드 7.0 이상 (접근성 서비스 및 오버레이 안정성 확보)
-        targetSdkVersion 35
-        versionCode 1
-        versionName "1.0.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles "consumer-rules.pro"
-    }
-
-    // [중요] 코틀린과 자바 소스 폴더를 명확히 통합
-    sourceSets {
-        main {
-            java.srcDirs = ['src/main/java']
-            kotlin.srcDirs = ['src/main/java']
-        }
-    }
-
-    buildFeatures {
-        buildConfig true
-    }
-
-    // 자바 17 환경 준수 (안드로이드 16 빌드 필수 조건)
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
-    lintOptions {
-        abortOnError false
-    }
+    defaultConfig { minSdkVersion 24; targetSdkVersion 35 }
+    sourceSets { main { java.srcDirs = ['src/main/java']; kotlin.srcDirs = ['src/main/java'] } }
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
 }
-
 dependencies {
     implementation project(':expo-modules-core')
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    
-    // UI 및 포그라운드 서비스를 위한 필수 라이브러리 추가
     implementation "androidx.core:core-ktx:1.12.0"
-    implementation "androidx.appcompat:appcompat:1.6.1"
 }
