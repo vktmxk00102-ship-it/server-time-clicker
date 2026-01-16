@@ -7,11 +7,6 @@ import android.provider.Settings
 import android.net.Uri
 import android.os.Build
 
-// [핵심 해결 1] 같은 패키지라도 못 찾을 때를 대비해 강제로 임포트
-import expo.modules.clickercore.ClickerAccessibilityService
-import expo.modules.clickercore.OverlayService
-import expo.modules.clickercore.SharedData
-
 // [핵심 해결 2] 클래스 이름을 JSON 설정(ClickerCoreModule)과 똑같이 변경
 class ClickerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
