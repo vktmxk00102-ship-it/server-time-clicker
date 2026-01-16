@@ -11,10 +11,8 @@ import java.net.HttpURLConnection
 
 class ClickerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
-    // 1. 모듈 이름 정의 (JS에서 NativeModules.ClickerCoreModule로 접근)
     Name("ClickerCoreModule")
 
-    // 2. 권한 확인 함수 (앱 시작 시 호출됨)
     AsyncFunction("checkOverlayPermission") {
         val context = appContext.reactContext ?: return@AsyncFunction false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -23,55 +21,71 @@ class ClickerCoreModule : Module() {
         return@AsyncFunction true
     }
 
-    // 3. 서버 시간 동기화 (네트워크 요청)
     AsyncFunction("getServerTimeOffset") { targetUrl: String ->
         try {
             val start = System.currentTimeMillis()
             val connection = URL(targetUrl).openConnection() as HttpURLConnection
             connection.requestMethod = "HEAD"
-            connection.connectTimeout = 3000 // 3초 타임아웃
-            
+            connection.connectTimeout = 3000
             connection.connect()
-            
             val serverDate = connection.date
             val end = System.currentTimeMillis()
-
-            if (serverDate == 0L) {
-                return@AsyncFunction 0.0
-            }
-
-            // 레이턴시 보정 계산
+            if (serverDate == 0L) return@AsyncFunction 0.0
             val latency = (end - start) / 2
             val offset = (serverDate + latency) - end
-            
             return@AsyncFunction offset.toDouble()
         } catch (e: Exception) {
-            // 실패 시 오차 0 반환
             return@AsyncFunction 0.0
         }
     }
 
-    // 4. 오버레이 표시 (가장 중요한 부분 - 크래시 방지 적용)
     Function("showOverlay") { mode: String ->
       val context = appContext.reactContext ?: throw Exception("React Context Lost")
       
-      // [안전장치 1] 권한이 없으면 아예 실행 시도조차 하지 않고 에러 발생
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-          throw Exception("PERMISSION_DENIED: 다른 앱 위에 표시 권한이 없습니다.")
+          throw Exception("PERMISSION_DENIED: 권한이 없습니다.")
       }
 
       try {
           val intent = Intent(context, OverlayService::class.java).apply {
               putExtra("mode", mode)
           }
-          
-          // 안드로이드 버전에 따른 서비스 시작 방식 분기
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
               context.startForegroundService(intent)
           } else {
               context.startService(intent)
           }
           return@Function true
-          
       } catch (e: SecurityException) {
-          // [안전장치
+          e.printStackTrace()
+          throw Exception("SECURITY_ERROR: 권한 부족.")
+      } catch (e: Exception) {
+          e.printStackTrace()
+          throw Exception("ERROR: ${e.message}")
+      }
+    }
+
+    Function("performClick") { x: Float, y: Float ->
+      val context = appContext.reactContext ?: return@Function false
+      ClickerAccessibilityService.instance?.performClickAt(x, y)
+      context.stopService(Intent(context, OverlayService::class.java))
+      return@Function true
+    }
+
+    Function("openSettings") {
+      val context = appContext.reactContext ?: return@Function false
+      val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      context.startActivity(intent)
+      return@Function true
+    }
+  }
+} // ⬅️ 클래스가 여기서 끝납니다.
+
+// ⬇️ [중요] SharedData를 클래스 밖(Top-Level)에 선언해야 다른 파일에서 바로 보입니다.
+object SharedData {
+    var targetX: Float = 0f
+    var targetY: Float = 0f
+    var isCaptureMode: Boolean = false
+    var capturedId: String? = null
+}

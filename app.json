@@ -27,7 +27,10 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true, 
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "usesCleartextTraffic": true,
             "lintOptions": {
               "checkReleaseBuilds": false,
               "abortOnError": false
