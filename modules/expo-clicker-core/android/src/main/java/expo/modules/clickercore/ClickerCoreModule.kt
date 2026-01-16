@@ -13,90 +13,101 @@ class ClickerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ClickerCoreModule")
 
-    // 1. 서버 시간 동기화 (GET 방식)
+    // 1. 서버 시간 동기화 (네트워크 타임아웃 및 예외 처리 강화)
     AsyncFunction("getServerTimeOffset") { targetUrl: String ->
-        try {
-            val start = System.currentTimeMillis()
-            val url = URL(targetUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-            
-            connection.connect()
-            
-            val serverDate = connection.date
-            connection.disconnect()
+      try {
+        val url = URL(targetUrl)
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 3000
+        connection.readTimeout = 3000
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+        
+        connection.connect()
+        val serverDate = connection.date
+        connection.disconnect()
 
-            if (serverDate == 0L) return@AsyncFunction 0.0
+        if (serverDate == 0L) return@AsyncFunction 0.0
 
-            val end = System.currentTimeMillis()
-            val latency = (end - start) / 2
-            val offset = (serverDate + latency) - end
-            
-            offset.toDouble()
-        } catch (e: Exception) {
-            0.0
-        }
+        val end = System.currentTimeMillis()
+        (serverDate - end).toDouble()
+      } catch (e: Exception) {
+        -999.0 // 에러 발생 시 식별 가능한 값 반환
+      }
     }
 
-    // 2. 권한 확인 함수
+    // 2. 권한 확인 (가장 안전한 Context 접근)
     AsyncFunction("checkOverlayPermission") {
-        val context = appContext.reactContext ?: return@AsyncFunction false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(context)
-        } else {
-            true
-        }
-    }
-
-    // 3. 오버레이 표시 (Type mismatch 해결)
-    Function("showOverlay") { mode: String ->
-        val context = appContext.reactContext ?: return@Function false
-        
-        try {
-            val intent = Intent(context, OverlayService::class.java).apply {
-                putExtra("mode", mode)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-            true // 마지막 줄에 true를 두어 Boolean 반환을 명시
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
-
-    // 4. 클릭 실행 및 은신
-    Function("performClick") { x: Float, y: Float ->
-        val context = appContext.reactContext ?: return@Function false
-        
-        ClickerAccessibilityService.instance?.performClickAt(x, y)
-        
-        val intent = Intent(context, OverlayService::class.java)
-        context.stopService(intent)
+      val context = appContext.reactContext ?: appContext.currentActivity ?: return@AsyncFunction false
+      return@AsyncFunction if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        Settings.canDrawOverlays(context)
+      } else {
         true
+      }
     }
 
-    // 5. 설정 화면 열기
+    // 3. 설정 화면 열기 (꺼짐 방지 핵심 로직)
     Function("openSettings") {
-        val context = appContext.reactContext ?: return@Function false
-        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
+      // currentActivity를 우선 사용하고 없으면 reactContext 사용
+      val activity = appContext.currentActivity ?: appContext.reactContext
+      
+      if (activity == null) return@Function false
+
+      try {
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+          data = Uri.parse("package:${activity.packageName}")
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        activity.startActivity(intent)
         true
+      } catch (e: Exception) {
+        // 패키지 지정 방식 실패 시 전체 목록이라도 실행 (절대 크래시 안 남)
+        try {
+          val fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          }
+          activity.startActivity(fallbackIntent)
+          true
+        } catch (e2: Exception) {
+          false
+        }
+      }
+    }
+
+    // 4. 오버레이 표시
+    Function("showOverlay") { mode: String ->
+      val context = appContext.reactContext ?: appContext.currentActivity ?: return@Function false
+      try {
+        val intent = Intent(context, OverlayService::class.java).apply {
+          putExtra("mode", mode)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+        } else {
+          context.startService(intent)
+        }
+        true
+      } catch (e: Exception) {
+        false
+      }
+    }
+
+    // 5. 클릭 실행
+    Function("performClick") { x: Float, y: Float ->
+      ClickerAccessibilityService.instance?.performClickAt(x, y)
+      
+      // 클릭 후 오버레이 닫기
+      val context = appContext.reactContext ?: appContext.currentActivity
+      context?.let {
+        val intent = Intent(it, OverlayService::class.java)
+        it.stopService(intent)
+      }
+      true
     }
   }
 }
 
-// SharedData는 클래스 밖에 배치하여 다른 파일에서도 인식 가능하게 함
+// 파일 최하단: 다른 클래스에서 접근 가능하도록 object로 유지
 object SharedData {
     var targetX: Float = 0f
     var targetY: Float = 0f
