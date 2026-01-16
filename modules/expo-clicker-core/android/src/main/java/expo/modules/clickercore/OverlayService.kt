@@ -12,7 +12,6 @@ import android.widget.LinearLayout
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.graphics.drawable.GradientDrawable
-import android.util.TypedValue
 
 class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
@@ -38,7 +37,6 @@ class OverlayService : Service() {
     }
 
     private fun setupFullOverlay() {
-        // 1. 윈도우 파라미터 설정 (터치 이벤트를 받기 위해 FLAG_NOT_FOCUSABLE 유지)
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -49,22 +47,21 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 500 // 초기 위치
-            y = 800
+            x = 300
+            y = 500
         }
 
         rootLayout = FrameLayout(this)
 
-        // 2. 십자선 컨테이너 (이 영역을 드래그하면 이동)
+        // 십자선 UI (400x400)
         crosshairContainer = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(400, 400) // 드래그 인식 영역
-            
-            // 가로 실선
+            layoutParams = FrameLayout.LayoutParams(400, 400)
+            // 가로선
             addView(View(this@OverlayService).apply {
                 setBackgroundColor(Color.RED)
                 layoutParams = FrameLayout.LayoutParams(400, 2, Gravity.CENTER)
             })
-            // 세로 실선
+            // 세로선
             addView(View(this@OverlayService).apply {
                 setBackgroundColor(Color.RED)
                 layoutParams = FrameLayout.LayoutParams(2, 400, Gravity.CENTER)
@@ -79,7 +76,7 @@ class OverlayService : Service() {
             })
         }
 
-        // 드래그 이동 로직 보완
+        // 드래그 이동 핸들러
         crosshairContainer?.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -101,15 +98,14 @@ class OverlayService : Service() {
             }
         }
 
-        // 3. 우측 상단 메뉴 (지정/해제, 설정 버튼)
+        // 우측 상단 메뉴
         topMenu = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            val menuParams = FrameLayout.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP or Gravity.END
-            ).apply { setMargins(0, 50, 50, 0) } // 모서리에서 살짝 띄움
-            layoutParams = menuParams
+            ).apply { setMargins(0, 60, 60, 0) }
         }
 
         val btnFix = createMenuButton("지정", "#CC0000")
@@ -117,14 +113,12 @@ class OverlayService : Service() {
 
         btnFix.setOnClickListener {
             if (btnFix.text == "지정") {
-                // [지정] 상태: 십자선 숨기고 좌표 저장
                 crosshairContainer?.visibility = View.GONE
-                SharedData.targetX = (params.x + 200).toFloat() // 컨테이너 절반(200) 보정
+                SharedData.targetX = (params.x + 200).toFloat()
                 SharedData.targetY = (params.y + 200).toFloat()
                 btnFix.text = "해제"
-                btnFix.setBackgroundColor(Color.parseColor("#444444"))
+                btnFix.setBackgroundColor(Color.GRAY)
             } else {
-                // [해제] 상태: 십자선 다시 표시
                 crosshairContainer?.visibility = View.VISIBLE
                 btnFix.text = "지정"
                 btnFix.setBackgroundColor(Color.parseColor("#CC0000"))
@@ -132,7 +126,6 @@ class OverlayService : Service() {
         }
 
         btnSetting.setOnClickListener {
-            // 우리 앱으로 돌아가기
             val intent = packageManager.getLaunchIntentForPackage(packageName)
             intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
@@ -140,30 +133,25 @@ class OverlayService : Service() {
 
         topMenu?.addView(btnFix)
         topMenu?.addView(btnSetting)
-
         rootLayout?.addView(crosshairContainer)
         rootLayout?.addView(topMenu)
-        
         windowManager.addView(rootLayout, params)
     }
 
     private fun createMenuButton(txt: String, color: String): Button {
         return Button(this).apply {
             text = txt
-            textSize = 12f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor(color))
-            layoutParams = LinearLayout.LayoutParams(160, 100).apply {
-                setMargins(10, 0, 0, 0)
-            }
+            layoutParams = LinearLayout.LayoutParams(160, 100).apply { setMargins(10, 0, 0, 0) }
         }
     }
 
     private fun createNotification() {
         val channelId = "overlay_service"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Overlay", NotificationManager.IMPORTANCE_LOW)
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(channelId, "Overlay", NotificationManager.IMPORTANCE_LOW))
         }
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId).setContentTitle("위치 지정 모드").setSmallIcon(android.R.drawable.ic_menu_mylocation).build()
