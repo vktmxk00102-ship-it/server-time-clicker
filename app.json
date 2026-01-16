@@ -12,11 +12,12 @@
     "android": {
       "package": "com.vktmxk.servertime",
       "permissions": [
-        "SYSTEM_ALERT_WINDOW",
-        "BIND_ACCESSIBILITY_SERVICE",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_SPECIAL_USE",
-        "POST_NOTIFICATIONS"
+        "android.permission.INTERNET",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
     "plugins": [
@@ -26,6 +27,7 @@
         "expo-build-properties",
         {
           "android": {
+            "usesCleartextTraffic": true, 
             "lintOptions": {
               "checkReleaseBuilds": false,
               "abortOnError": false

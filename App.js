@@ -1,280 +1,323 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ScrollView,
-  Dimensions, Animated, PanResponder, NativeModules, Switch, Platform
+  NativeModules, Switch, Platform, Dimensions
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker'; // [설치 필요] npm install @react-native-picker/picker
-import { Crosshair, MousePointerClick, Zap, Play, Square, RefreshCw, Settings as IconSettings } from 'lucide-react-native';
+import { Picker } from '@react-native-picker/picker';
+import { Crosshair, MousePointerClick, Zap, Play, Square, RefreshCw, Settings, ChevronUp, ChevronDown } from 'lucide-react-native';
 
 const { ClickerCoreModule } = NativeModules;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 // 주요 사이트 목록
 const SITE_PRESETS = [
-  { label: '직접 입력', value: '' },
   { label: '네이버 시계', value: 'https://time.navyism.com/?host=naver.com' },
-  { label: '인터파크 티켓', value: 'https://ticket.interpark.com' },
-  { label: '예스24 티켓', value: 'http://ticket.yes24.com' },
-  { label: '멜론 티켓', value: 'https://ticket.melon.com' },
+  { label: '인터파크', value: 'https://ticket.interpark.com' },
   { label: '구글', value: 'https://www.google.com' },
 ];
 
 export default function App() {
-  // 시간 상태
+  // --- 상태 관리 ---
   const [timeOffset, setTimeOffset] = useState(0);
   const [serverTime, setServerTime] = useState(new Date());
   
-  // URL 상태
-  const [targetUrl, setTargetUrl] = useState('https://www.google.com');
-  const [selectedSite, setSelectedSite] = useState(SITE_PRESETS[5].value);
+  const [targetUrl, setTargetUrl] = useState(SITE_PRESETS[0].value);
+  const [selectedSite, setSelectedSite] = useState(SITE_PRESETS[0].value);
 
-  // 목표 시간
+  // 목표 시간 (문자열로 관리)
   const [targetH, setTargetH] = useState('20');
   const [targetM, setTargetM] = useState('00');
   const [targetS, setTargetS] = useState('00');
 
-  // 보정 및 실행 상태
+  // 조작 모드 (+/-)
+  const [isPlusMode, setIsPlusMode] = useState(true);
+
+  // 보정 및 실행
   const [isCompEnabled, setIsCompEnabled] = useState(true);
   const [compValue, setCompValue] = useState('0.05');
   const [isRunning, setIsRunning] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
 
-  // 1. 서버 시간 동기화 (https 자동 붙임 + 예외처리)
+  // 1. 서버 시간 동기화
   const syncServerTime = async () => {
     let finalUrl = targetUrl.trim();
-    if (!finalUrl.startsWith('http')) {
-        finalUrl = 'https://' + finalUrl;
-        setTargetUrl(finalUrl);
-    }
+    if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
 
     try {
       const offset = await ClickerCoreModule.getServerTimeOffset(finalUrl);
-      if (offset === 0 && finalUrl.includes('google')) {
-          // 구글 등 일부 사이트는 HEAD 요청을 막을 수 있음
-          Alert.alert("알림", "해당 사이트는 서버 시간을 제공하지 않거나 차단되었습니다.");
+      if (offset === 0 && !finalUrl.includes('google')) {
+         Alert.alert("실패", "서버 응답이 없습니다.");
       } else {
-          setTimeOffset(offset);
-          Alert.alert("동기화 성공", `지연 시간 보정됨: ${offset.toFixed(1)}ms`);
+         setTimeOffset(offset);
+         Alert.alert("완료", `오차 보정: ${offset.toFixed(0)}ms`);
       }
     } catch (e) {
-      Alert.alert("오류", "인터넷 연결을 확인하거나 URL을 확인해주세요.");
+      Alert.alert("오류", "인터넷 연결을 확인하세요.");
     }
   };
 
-  // 2. 실시간 타이머
+  // 2. 타이머 & 실행
   useEffect(() => {
     const timer = setInterval(() => {
       const nowMs = Date.now() + timeOffset;
-      setServerTime(new Date(nowMs));
-      if (isRunning) checkAndExecute(nowMs);
-    }, 10); // 성능을 위해 10ms로 조정
+      const now = new Date(nowMs);
+      setServerTime(now);
+
+      if (isRunning) {
+        const targetDate = new Date(now);
+        targetDate.setHours(parseInt(targetH), parseInt(targetM), parseInt(targetS), 0);
+        let executeTime = targetDate.getTime();
+        if (isCompEnabled) executeTime -= (parseFloat(compValue) * 1000);
+
+        if (nowMs >= executeTime) {
+          ClickerCoreModule.performClick(0, 0);
+          setIsRunning(false);
+          setActiveMode(null);
+          Alert.alert("실행 완료", "클릭 후 종료되었습니다.");
+        }
+      }
+    }, 10);
     return () => clearInterval(timer);
   }, [isRunning, timeOffset, targetH, targetM, targetS, isCompEnabled, compValue]);
 
-  // 3. 실행 로직 (은신)
-  const checkAndExecute = (nowMs) => {
-    const targetDate = new Date(serverTime);
-    targetDate.setHours(parseInt(targetH), parseInt(targetM), parseInt(targetS), 0);
+  // 3. 시간 계산 로직
+  const adjustTime = (type, amount) => {
+    let h = parseInt(targetH || '0');
+    let m = parseInt(targetM || '0');
+    let s = parseInt(targetS || '0');
     
-    let executeTime = targetDate.getTime();
-    if (isCompEnabled) executeTime -= (parseFloat(compValue) * 1000);
+    // +/- 모드 적용
+    const val = isPlusMode ? amount : -amount;
 
-    if (nowMs >= executeTime) {
-      ClickerCoreModule.performClick(0, 0); 
-      setIsRunning(false);
-      setActiveMode(null);
-      Alert.alert("실행 완료", "클릭 수행 후 오버레이가 종료되었습니다.");
-    }
+    if (type === 'H') h += val;
+    if (type === 'M') m += val;
+    if (type === 'S') s += val;
+
+    // 시간 정규화 (60초 -> 1분, 60분 -> 1시간 등)
+    const date = new Date();
+    date.setHours(h, m, s, 0);
+    
+    setTargetH(date.getHours().toString().padStart(2, '0'));
+    setTargetM(date.getMinutes().toString().padStart(2, '0'));
+    setTargetS(date.getSeconds().toString().padStart(2, '0'));
   };
 
-  // 4. 오버레이 토글 (권한 체크 필수)
+  // 가까운 30분/정각 설정
+  const setNearestTime = (type) => {
+    const now = new Date(Date.now() + timeOffset);
+    let h = now.getHours();
+    let m = now.getMinutes();
+
+    if (type === '30') {
+      if (m < 30) m = 30;
+      else { m = 0; h += 1; }
+    } else {
+      // 정각
+      m = 0; h += 1;
+    }
+
+    const next = new Date(now);
+    next.setHours(h, m, 0, 0);
+    
+    setTargetH(next.getHours().toString().padStart(2, '0'));
+    setTargetM(next.getMinutes().toString().padStart(2, '0'));
+    setTargetS('00');
+  };
+
+  // 오버레이 토글 (권한 체크)
   const toggleOverlay = async (mode) => {
     try {
       if (activeMode === mode) {
         ClickerCoreModule.showOverlay("HIDE");
         setActiveMode(null);
       } else {
-        // 네이티브 모듈 호출
-        ClickerCoreModule.showOverlay(mode); 
+        await ClickerCoreModule.showOverlay(mode);
         setActiveMode(mode);
       }
     } catch (e) {
-      Alert.alert("권한 필요", "설정 > 다른 앱 위에 표시 권한을 허용해주세요.", [
-        { text: "설정으로 이동", onPress: () => ClickerCoreModule.openSettings() },
-        { text: "취소" }
+      Alert.alert("권한 필요", "설정에서 '다른 앱 위에 표시' 권한을 켜주세요.", [
+        { text: "설정 열기", onPress: () => ClickerCoreModule.openSettings() }
       ]);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{paddingBottom: 50}}>
-      <Text style={styles.headerTitle}>🎯 PRO 서버시간 클릭커</Text>
+    <View style={styles.container}>
+      <Text style={styles.headerTitle}>🎯 PRO 티켓팅 (서버동기화)</Text>
 
-      {/* --- [수정] URL 콤보박스 & 입력창 --- */}
-      <View style={styles.card}>
-        <Text style={styles.label}>타겟 서버 선택</Text>
-        <View style={styles.pickerContainer}>
+      {/* 1. 서버 시간 & URL (컴팩트) */}
+      <View style={styles.compactCard}>
+        <View style={styles.row}>
           <Picker
             selectedValue={selectedSite}
-            onValueChange={(itemValue) => {
-              setSelectedSite(itemValue);
-              if (itemValue !== '') setTargetUrl(itemValue);
-            }}
-            style={styles.picker}
-            itemStyle={{height: 50}} // iOS용 높이
+            onValueChange={(v) => { setSelectedSite(v); if(v) setTargetUrl(v); }}
+            style={{ width: 130, height: 40 }}
+            mode="dropdown"
           >
-            {SITE_PRESETS.map((site, idx) => (
-               <Picker.Item key={idx} label={site.label} value={site.value} />
-            ))}
+            {SITE_PRESETS.map((s, i) => <Picker.Item key={i} label={s.label} value={s.value} />)}
           </Picker>
-        </View>
-        
-        <View style={styles.urlRow}>
-          <TextInput 
-            style={styles.urlInput} 
-            value={targetUrl} 
-            onChangeText={(text) => { setTargetUrl(text); setSelectedSite(''); }}
-            placeholder="URL 직접 입력"
-            autoCapitalize="none"
-          />
           <TouchableOpacity style={styles.syncBtn} onPress={syncServerTime}>
-            <RefreshCw size={20} color="#FFF" />
+            <RefreshCw size={16} color="#FFF" />
+            <Text style={styles.syncText}> 동기화</Text>
           </TouchableOpacity>
         </View>
-
-        {/* --- [수정] 시간 표시 (한 줄 유지) --- */}
-        <View style={styles.timeContainer}>
-            <Text 
-                style={styles.timeText} 
-                numberOfLines={1} 
-                adjustsFontSizeToFit={true} // 글자가 길어지면 사이즈 자동 축소
-            >
-            {serverTime.toLocaleTimeString('ko-KR', { hour12: false })}
-            <Text style={styles.msText}>.{serverTime.getMilliseconds().toString().padStart(3, '0')}</Text>
-            </Text>
-        </View>
+        
+        {/* 서버 시간 (크게) */}
+        <Text style={styles.serverTimeText}>
+          {serverTime.toLocaleTimeString('ko-KR', { hour12: false })}
+          <Text style={styles.msText}>.{serverTime.getMilliseconds().toString().padStart(3, '0')}</Text>
+        </Text>
       </View>
 
-      {/* --- 실행 모드 --- */}
-      <View style={styles.modeRow}>
-        <TouchableOpacity 
-          style={[styles.modeBtn, activeMode === 'LOCATION' && styles.modeBtnActive]} 
-          onPress={() => toggleOverlay('LOCATION')}
-        >
-          <Crosshair size={24} color={activeMode === 'LOCATION' ? '#FFF' : '#007AFF'} />
-          <Text style={[styles.modeBtnText, activeMode === 'LOCATION' && styles.modeTextColor]}>위치 지정</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.modeBtn, activeMode === 'ID' && styles.modeBtnActive]} 
-          onPress={() => toggleOverlay('ID')}
-        >
-          <MousePointerClick size={24} color={activeMode === 'ID' ? '#FFF' : '#007AFF'} />
-          <Text style={[styles.modeBtnText, activeMode === 'ID' && styles.modeTextColor]}>객체 지정</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* 권한 설정 바로가기 (오버레이가 죽을 때 대비) */}
-      <TouchableOpacity style={styles.settingLink} onPress={() => ClickerCoreModule.openSettings()}>
-        <IconSettings size={14} color="#888" />
-        <Text style={styles.settingLinkText}> 오버레이 권한 설정 열기</Text>
-      </TouchableOpacity>
-
-      {/* --- 보정 설정 --- */}
-      <View style={styles.card}>
+      {/* 2. 목표 시간 설정 (요청하신 +/- 및 10/1 버튼 UI) */}
+      <View style={[styles.card, { flex: 0 }]}>
         <View style={styles.rowBetween}>
-          <View style={styles.row}>
-            <Zap size={18} color="#FF9500" />
-            <Text style={styles.sectionTitle}> 선입력 보정</Text>
-          </View>
-          <Switch value={isCompEnabled} onValueChange={setIsCompEnabled} />
+            <Text style={styles.cardTitle}>목표 시간</Text>
+            {/* 단축 버튼 */}
+            <View style={styles.row}>
+                <TouchableOpacity style={styles.quickBtn} onPress={() => setNearestTime('30')}><Text style={styles.quickText}>다음 30분</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.quickBtn} onPress={() => setNearestTime('00')}><Text style={styles.quickText}>다음 정각</Text></TouchableOpacity>
+            </View>
         </View>
-        {isCompEnabled && (
-          <View style={styles.compInputRow}>
-            <TextInput 
-              style={styles.compInput} 
-              value={compValue} 
-              onChangeText={setCompValue} 
-              keyboardType="numeric"
-            />
-            <Text style={styles.compUnit}>초 먼저 클릭</Text>
+
+        <View style={styles.timeControlContainer}>
+          {/* 왼쪽: +/- 모드 변경 버튼 */}
+          <TouchableOpacity 
+            style={[styles.modeToggleBtn, { backgroundColor: isPlusMode ? '#FF3B30' : '#007AFF' }]}
+            onPress={() => setIsPlusMode(!isPlusMode)}
+          >
+            {isPlusMode ? <ChevronUp color="#FFF" /> : <ChevronDown color="#FFF" />}
+            <Text style={styles.modeToggleText}>{isPlusMode ? '증가' : '감소'}</Text>
+          </TouchableOpacity>
+
+          {/* 시/분/초 컨트롤 */}
+          <View style={styles.timeInputsArea}>
+             {/* 시 */}
+             <View style={styles.col}>
+                <TextInput style={styles.tInput} value={targetH} onChangeText={setTargetH} keyboardType="numeric" />
+                <View style={styles.btnGrid}>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('H', 10)}><Text style={styles.numTxt}>10</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('H', 1)}><Text style={styles.numTxt}>1</Text></TouchableOpacity>
+                </View>
+             </View>
+             <Text style={styles.colon}>:</Text>
+             {/* 분 */}
+             <View style={styles.col}>
+                <TextInput style={styles.tInput} value={targetM} onChangeText={setTargetM} keyboardType="numeric" />
+                <View style={styles.btnGrid}>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('M', 10)}><Text style={styles.numTxt}>10</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('M', 1)}><Text style={styles.numTxt}>1</Text></TouchableOpacity>
+                </View>
+             </View>
+             <Text style={styles.colon}>:</Text>
+             {/* 초 */}
+             <View style={styles.col}>
+                <TextInput style={styles.tInput} value={targetS} onChangeText={setTargetS} keyboardType="numeric" />
+                <View style={styles.btnGrid}>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('S', 10)}><Text style={styles.numTxt}>10</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.numBtn} onPress={() => adjustTime('S', 1)}><Text style={styles.numTxt}>1</Text></TouchableOpacity>
+                </View>
+             </View>
           </View>
-        )}
+        </View>
       </View>
 
-      {/* --- 목표 시간 --- */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>목표 시간 설정</Text>
-        <View style={styles.targetInputRow}>
-          {[{v:targetH, s:setTargetH}, {v:targetM, s:setTargetM}, {v:targetS, s:setTargetS}].map((t, i) => (
-            <React.Fragment key={i}>
-              <TextInput style={styles.timeInput} value={t.v} onChangeText={t.s} keyboardType="numeric" maxLength={2} />
-              {i < 2 && <Text style={styles.colon}>:</Text>}
-            </React.Fragment>
-          ))}
+      {/* 3. 보정 및 실행 */}
+      <View style={styles.rowCard}>
+        <View style={styles.row}>
+          <Zap size={16} color="#FF9500" />
+          <Text style={styles.subTitle}> 선입력 보정 (초)</Text>
         </View>
+        <TextInput 
+           style={styles.miniInput} 
+           value={compValue} 
+           onChangeText={setCompValue} 
+           keyboardType="numeric" 
+           placeholder="0.05"
+        />
+        <Switch value={isCompEnabled} onValueChange={setIsCompEnabled} />
       </View>
 
-      {/* --- 메인 버튼 --- */}
+      {/* 4. 모드 선택 및 실행 */}
+      <View style={styles.actionRow}>
+          <TouchableOpacity style={[styles.actBtn, activeMode==='LOCATION' && styles.actOn]} onPress={() => toggleOverlay('LOCATION')}>
+             <Crosshair size={20} color={activeMode==='LOCATION'?'#FFF':'#555'} />
+             <Text style={[styles.actTxt, activeMode==='LOCATION' && styles.actTxtOn]}>위치 지정</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.actBtn, activeMode==='ID' && styles.actOn]} onPress={() => toggleOverlay('ID')}>
+             <MousePointerClick size={20} color={activeMode==='ID'?'#FFF':'#555'} />
+             <Text style={[styles.actTxt, activeMode==='ID' && styles.actTxtOn]}>객체 지정</Text>
+          </TouchableOpacity>
+      </View>
+
       <TouchableOpacity 
-        style={[styles.mainStartBtn, isRunning && styles.mainStopBtn]} 
+        style={[styles.startBtn, isRunning && styles.stopBtn]} 
         onPress={() => {
-          if (!activeMode && !isRunning) { // 실행 중일 땐 취소 가능하게
-             Alert.alert("알림", "먼저 위치나 객체를 지정해주세요.");
-             return;
-          }
-          setIsRunning(!isRunning);
+            if(!activeMode && !isRunning) return Alert.alert("알림", "위치나 객체를 먼저 지정하세요.");
+            setIsRunning(!isRunning);
         }}
       >
-        {isRunning ? <Square color="#FFF" fill="#FFF" /> : <Play color="#FFF" fill="#FFF" />}
-        <Text style={styles.mainStartBtnText}>{isRunning ? ' 대기 취소' : ' 클릭 대기 시작'}</Text>
+        {isRunning ? <Square fill="#FFF" color="#FFF"/> : <Play fill="#FFF" color="#FFF"/>}
+        <Text style={styles.startBtnText}>{isRunning ? '대기 취소' : '클릭 대기 시작 (READY)'}</Text>
       </TouchableOpacity>
-    </ScrollView>
+      
+      {/* 권한 설정 바로가기 */}
+      <TouchableOpacity style={styles.permLink} onPress={() => ClickerCoreModule.openSettings()}>
+         <Settings size={14} color="#999" />
+         <Text style={{color:'#999', fontSize:12}}> 오버레이 권한 설정 (안될 때 클릭)</Text>
+      </TouchableOpacity>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7', padding: 15 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 40, marginBottom: 15, textAlign: 'center', color: '#1C1C1E' },
-  card: { backgroundColor: '#FFF', padding: 18, borderRadius: 20, marginBottom: 15, elevation: 2 },
-  label: { fontSize: 12, color: '#888', marginBottom: 5, fontWeight: 'bold' },
-  pickerContainer: { borderWidth: 1, borderColor: '#EEE', borderRadius: 10, marginBottom: 10, overflow: 'hidden' },
-  picker: { height: 50, width: '100%' },
-  urlRow: { flexDirection: 'row', marginBottom: 15 },
-  urlInput: { flex: 1, backgroundColor: '#F2F2F7', borderRadius: 10, paddingHorizontal: 15, height: 45 },
-  syncBtn: { backgroundColor: '#007AFF', width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
+  container: { flex: 1, backgroundColor: '#F0F0F5', padding: 15, paddingTop: 40 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: '#333' },
   
-  // [수정] 시간 텍스트 레이아웃
-  timeContainer: { alignItems: 'center', justifyContent: 'center', height: 60 },
-  timeText: { 
-    fontSize: 42, // 기본 크기
-    fontWeight: 'bold', 
-    textAlign: 'center', 
-    color: '#000',
-    includeFontPadding: false, // 안드로이드 상하 여백 제거
-    fontVariant: ['tabular-nums'], // 숫자 너비 고정
-    width: '100%'
-  },
-  msText: { fontSize: 24, color: '#007AFF' },
-  
-  modeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  modeBtn: { backgroundColor: '#FFF', width: '48%', padding: 20, borderRadius: 20, alignItems: 'center', borderWidth: 1, borderColor: '#E5E5EA' },
-  modeBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  modeBtnText: { marginTop: 10, fontWeight: 'bold', color: '#007AFF' },
-  modeTextColor: { color: '#FFF' },
-  settingLink: { flexDirection: 'row', justifyContent: 'center', marginBottom: 15 },
-  settingLinkText: { color: '#888', fontSize: 12 },
+  compactCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 15, marginBottom: 10, alignItems: 'center', elevation: 2 },
+  card: { backgroundColor: '#FFF', padding: 15, borderRadius: 15, marginBottom: 10, elevation: 2 },
+  rowCard: { backgroundColor: '#FFF', padding: 12, borderRadius: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 1 },
   
   row: { flexDirection: 'row', alignItems: 'center' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#3A3A3C' },
-  compInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  compInput: { backgroundColor: '#F2F2F7', width: 80, height: 40, borderRadius: 8, textAlign: 'center', fontWeight: 'bold', fontSize: 18 },
-  compUnit: { marginLeft: 10, color: '#8E8E93' },
-  targetInputRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10 },
-  timeInput: { backgroundColor: '#F2F2F7', width: 70, height: 60, borderRadius: 12, textAlign: 'center', fontSize: 32, fontWeight: 'bold', color: '#1C1C1E' },
-  colon: { fontSize: 30, fontWeight: 'bold', marginHorizontal: 10 },
-  mainStartBtn: { backgroundColor: '#34C759', padding: 20, borderRadius: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
-  mainStopBtn: { backgroundColor: '#FF3B30' },
-  mainStartBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginLeft: 12 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  
+  syncBtn: { backgroundColor: '#007AFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', marginLeft: 10 },
+  syncText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
+  
+  serverTimeText: { fontSize: 36, fontWeight: 'bold', color: '#111', marginTop: 5, fontVariant: ['tabular-nums'] },
+  msText: { fontSize: 20, color: '#007AFF' },
+  
+  cardTitle: { fontSize: 14, fontWeight: 'bold', color: '#555' },
+  quickBtn: { backgroundColor: '#EEE', padding: 6, borderRadius: 6, marginLeft: 5 },
+  quickText: { fontSize: 11, color: '#333' },
+  
+  // 시간 조절 UI 스타일
+  timeControlContainer: { flexDirection: 'row', marginTop: 10, alignItems: 'center' },
+  modeToggleBtn: { width: 50, height: 90, justifyContent: 'center', alignItems: 'center', borderRadius: 10, marginRight: 10 },
+  modeToggleText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', marginTop: 5 },
+  
+  timeInputsArea: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  col: { alignItems: 'center', width: 65 },
+  tInput: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', backgroundColor: '#F5F5F5', width: '100%', height: 50, borderRadius: 8, marginBottom: 5 },
+  btnGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
+  numBtn: { backgroundColor: '#E0E0E0', width: 30, height: 30, justifyContent: 'center', alignItems: 'center', borderRadius: 5 },
+  numTxt: { fontSize: 12, fontWeight: 'bold', color: '#333' },
+  colon: { fontSize: 24, fontWeight: 'bold', marginHorizontal: 2, marginBottom: 35 },
+  
+  subTitle: { fontSize: 14, fontWeight: 'bold', marginLeft: 5 },
+  miniInput: { backgroundColor: '#F5F5F5', width: 60, height: 35, borderRadius: 5, textAlign: 'center', fontSize: 16 },
+  
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  actBtn: { flex: 1, backgroundColor: '#FFF', padding: 12, alignItems: 'center', borderRadius: 10, marginHorizontal: 2, borderWidth: 1, borderColor: '#DDD', flexDirection: 'row', justifyContent: 'center' },
+  actOn: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  actTxt: { marginLeft: 5, fontWeight: 'bold', color: '#555' },
+  actTxtOn: { color: '#FFF' },
+  
+  startBtn: { backgroundColor: '#34C759', padding: 15, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+  stopBtn: { backgroundColor: '#FF3B30' },
+  startBtnText: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  
+  permLink: { alignItems: 'center', marginTop: 15, flexDirection: 'row', justifyContent: 'center' },
 });
