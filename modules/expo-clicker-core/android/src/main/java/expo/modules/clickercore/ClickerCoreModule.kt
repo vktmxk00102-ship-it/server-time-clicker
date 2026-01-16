@@ -6,43 +6,53 @@ import android.content.Intent
 import android.provider.Settings
 import android.net.Uri
 import android.os.Build
+import kotlinx.coroutines.*
+import java.net.URL
+import java.net.HttpURLConnection
 
-// [핵심 해결 2] 클래스 이름을 JSON 설정(ClickerCoreModule)과 똑같이 변경
 class ClickerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
-    // [핵심 해결 3] 모듈 이름도 통일
     Name("ClickerCoreModule")
+
+    // 서버 시간 동기화 로직 (Latency 보정 포함)
+    AsyncFunction("getServerTimeOffset") { targetUrl: String ->
+        return@AsyncFunction withContext(Dispatchers.IO) {
+            try {
+                val start = System.currentTimeMillis()
+                val connection = URL(targetUrl).openConnection() as HttpURLConnection
+                connection.requestMethod = "HEAD"
+                connection.connectTimeout = 3000
+                connection.connect()
+                val serverDate = connection.date
+                val end = System.currentTimeMillis()
+                
+                val latency = (end - start) / 2
+                val offset = (serverDate + latency) - end
+                return@withContext offset.toDouble()
+            } catch (e: Exception) {
+                return@withContext 0.0
+            }
+        }
+    }
 
     Function("showOverlay") { mode: String ->
       val context = appContext.reactContext ?: return@Function false
       val intent = Intent(context, OverlayService::class.java).apply {
-        action = "SHOW_OVERLAY"
-        putExtra("mode", mode)
+          putExtra("mode", mode)
       }
-      
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          context.startForegroundService(intent)
-      } else {
-          context.startService(intent)
-      }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+      else context.startService(intent)
       return@Function true
     }
 
-    Function("hideOverlay") {
+    Function("performClick") { x: Float, y: Float ->
       val context = appContext.reactContext ?: return@Function false
-      context.stopService(Intent(context, OverlayService::class.java))
-      return@Function true
-    }
-
-    Function("updateTargetCoords") { x: Float, y: Float ->
-      SharedData.targetX = x
-      SharedData.targetY = y
-      return@Function true
-    }
-
-    Function("performClickAt") { x: Float, y: Float ->
-      // 임포트를 명시했으므로 이제 무조건 찾습니다
+      
+      // 1. 클릭 실행
       ClickerAccessibilityService.instance?.performClickAt(x, y)
+      
+      // 2. [방식 A] 즉시 은신 (오버레이 종료)
+      context.stopService(Intent(context, OverlayService::class.java))
       return@Function true
     }
 
@@ -53,13 +63,9 @@ class ClickerCoreModule : Module() {
       context.startActivity(intent)
       return@Function true
     }
-    
-    Function("startIdCapture") { SharedData.isCaptureMode = true; return@Function true }
-    Function("stopIdCapture") { SharedData.isCaptureMode = false; return@Function true }
   }
 }
 
-// SharedData는 이 파일에 그대로 유지
 object SharedData {
     var targetX: Float = 0f
     var targetY: Float = 0f
