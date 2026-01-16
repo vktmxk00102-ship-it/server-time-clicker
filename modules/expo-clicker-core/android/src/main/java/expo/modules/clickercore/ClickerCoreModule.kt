@@ -6,45 +6,41 @@ import android.content.Intent
 import android.provider.Settings
 import android.net.Uri
 import android.os.Build
-import kotlinx.coroutines.*
 import java.net.URL
 import java.net.HttpURLConnection
 
 class ClickerCoreModule : Module() {
-  // 모듈의 수명 주기에 맞춘 코루틴 스코프 정의
-  private val moduleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
   override fun definition() = ModuleDefinition {
     Name("ClickerCoreModule")
 
-    // 서버 시간 동기화 로직 (오류 수정됨)
+    // [수정] 복잡한 코루틴 제거 -> 단순 동기 코드로 변경
+    // AsyncFunction은 이미 백그라운드 스레드에서 돌기 때문에 멈춰도(Block) 됩니다.
     AsyncFunction("getServerTimeOffset") { targetUrl: String ->
-        // 1. CompletableDeferred를 사용하여 비동기 작업의 결과를 기다림
-        val result = CompletableDeferred<Double>()
-        
-        moduleScope.launch {
-            try {
-                val start = System.currentTimeMillis()
-                val connection = URL(targetUrl).openConnection() as HttpURLConnection
-                connection.requestMethod = "HEAD"
-                connection.connectTimeout = 3000
-                connection.connect()
-                
-                val serverDate = connection.date
-                val end = System.currentTimeMillis()
-                
-                // 네트워크 지연 시간(Latency) 보정
-                val latency = (end - start) / 2
-                val offset = (serverDate + latency) - end
-                
-                result.complete(offset.toDouble())
-            } catch (e: Exception) {
-                result.complete(0.0)
+        try {
+            val start = System.currentTimeMillis()
+            val connection = URL(targetUrl).openConnection() as HttpURLConnection
+            connection.requestMethod = "HEAD"
+            connection.connectTimeout = 3000 // 3초 타임아웃
+            
+            // 여기서 네트워크 요청을 보낼 때까지 잠시 대기함 (백그라운드라 괜찮음)
+            connection.connect()
+            
+            val serverDate = connection.date // 헤더에서 Date 가져오기
+            val end = System.currentTimeMillis()
+
+            if (serverDate == 0L) {
+                return@AsyncFunction 0.0
             }
+
+            // 네트워크 왕복 시간(Latency) 절반을 더해서 오차 보정
+            val latency = (end - start) / 2
+            val offset = (serverDate + latency) - end
+            
+            return@AsyncFunction offset.toDouble()
+        } catch (e: Exception) {
+            // 에러 나면 오차 0으로 반환
+            return@AsyncFunction 0.0
         }
-        
-        // 2. 비동기 작업의 결과를 반환
-        return@AsyncFunction result.await()
     }
 
     Function("showOverlay") { mode: String ->
@@ -66,7 +62,7 @@ class ClickerCoreModule : Module() {
       // 1. 클릭 실행
       ClickerAccessibilityService.instance?.performClickAt(x, y)
       
-      // 2. 실행 즉시 은신 (오버레이 종료)
+      // 2. 실행 즉시 은신
       context.stopService(Intent(context, OverlayService::class.java))
       return@Function true
     }
