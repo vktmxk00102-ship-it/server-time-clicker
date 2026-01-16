@@ -35,7 +35,6 @@ jobs:
       # 혹시 모를 로컬 환경 변수 충돌을 방지합니다.
       - name: 🚀 Build APK (Local)
         run: |
-        cd android && ./gradlew clean && cd ..
           eas build --local --platform android --profile preview --non-interactive
         env:
           NODE_ENV: production
