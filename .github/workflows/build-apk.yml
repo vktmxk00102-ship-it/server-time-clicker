@@ -36,6 +36,7 @@ jobs:
         run: |
           export NODE_ENV=production
           # [수정] --clear-cache 옵션 추가 (EAS 내부 캐시 삭제)
+          cd android && ./gradlew clean && cd ..
           eas build --local --platform android --profile preview --non-interactive --clear-cache
         env:
           NODE_ENV: production
