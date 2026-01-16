@@ -17,8 +17,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Toast // [추가] 에러 시 토스트 메시지 표시
 
 class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
@@ -29,29 +29,45 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        createNotification()
+        
+        // 알림 채널 생성 (안전하게 처리)
+        try {
+            createNotification()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val mode = intent?.getStringExtra("mode") ?: "LOCATION"
         
-        // 기존 뷰 초기화
+        // 기존 뷰 제거
         removeAllViews()
 
-        if (mode == "LOCATION") {
-            showLocationUI()
-        } else if (mode == "ID") {
-            showPipUI()
-        } else if (mode == "HIDE") {
-            stopSelf() // 즉시 은신 모드
+        if (mode == "HIDE") {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // [핵심] 화면 그리기 시도 (에러 나면 앱 죽는 대신 종료)
+        try {
+            if (mode == "LOCATION") {
+                showLocationUI()
+            } else if (mode == "ID") {
+                showPipUI()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // 에러 발생 시 토스트 메시지로 원인 알림
+            Toast.makeText(this, "오버레이 실행 실패: ${e.message}", Toast.LENGTH_LONG).show()
+            stopSelf() // 서비스 안전 종료
         }
         
         return START_STICKY
     }
 
-    // [방식 1] 위치 지정 UI (십자선 + 스마트 이동 버튼)
     private fun showLocationUI() {
-        // 1. 십자선 가이드 (터치 불가 레이어)
+        // ... (이전 코드와 동일, 파라미터 설정)
         val crossParams = createLayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -67,14 +83,14 @@ class OverlayService : Service() {
                 super.onDraw(canvas)
                 val cx = width / 2f
                 val cy = height / 2f
-                canvas.drawCircle(cx, cy, 25f, paint) // 중앙 원
-                canvas.drawLine(0f, cy, width.toFloat(), cy, paint) // 가로선
-                canvas.drawLine(cx, 0f, cx, height.toFloat(), paint) // 세로선
+                canvas.drawCircle(cx, cy, 25f, paint)
+                canvas.drawLine(0f, cy, width.toFloat(), cy, paint)
+                canvas.drawLine(cx, 0f, cx, height.toFloat(), paint)
             }
         }
+        // [안전장치] 뷰 추가
         windowManager.addView(crosshairView, crossParams)
 
-        // 2. 스마트 이동 버튼
         val btnParams = createLayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT
@@ -89,17 +105,12 @@ class OverlayService : Service() {
             setBackgroundColor(Color.parseColor("#EEFF0000"))
             setTextColor(Color.WHITE)
             setPadding(20, 10, 20, 10)
-            
             setOnTouchListener { v, event ->
                 if (event.action == MotionEvent.ACTION_MOVE) {
                     val rawX = event.rawX
                     val rawY = event.rawY
-                    
-                    // 스마트 회피 알고리즘 적용
                     applySmartAvoidance(btnParams, rawX, rawY)
                     windowManager.updateViewLayout(v, btnParams)
-                    
-                    // 십자선 중심 좌표 업데이트 (화면 중앙 고정이 아닌 버튼 위치를 타겟으로 할 경우)
                     SharedData.targetX = rawX
                     SharedData.targetY = rawY
                 }
@@ -109,23 +120,15 @@ class OverlayService : Service() {
         windowManager.addView(moveButton, btnParams)
     }
 
-    // 스마트 회피: 타겟 지점(touchX, touchY)과 버튼이 겹치지 않게 오프셋 부여
     private fun applySmartAvoidance(params: WindowManager.LayoutParams, x: Float, y: Float) {
         val screenW = resources.displayMetrics.widthPixels
         val screenH = resources.displayMetrics.heightPixels
-
         params.x = x.toInt() - 60
         params.y = y.toInt() - 60
-
-        // 사분면 체크 후 반대 방향으로 밀어내기
-        if (x < screenW / 2 && y < screenH / 2) { // 좌상단
-            params.x += 150; params.y += 150
-        } else if (x > screenW / 2 && y > screenH / 2) { // 우하단
-            params.x -= 150; params.y -= 150
-        }
+        if (x < screenW / 2 && y < screenH / 2) { params.x += 150; params.y += 150 }
+        else if (x > screenW / 2 && y > screenH / 2) { params.x -= 150; params.y -= 150 }
     }
 
-    // [방식 2] 객체 지정 UI (PIP 메뉴)
     private fun showPipUI() {
         val params = createLayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -160,7 +163,6 @@ class OverlayService : Service() {
                 startActivity(launchIntent)
                 stopSelf()
             }
-
             addView(btnSelect); addView(btnRelease); addView(btnSettings)
         }
         windowManager.addView(pipMenuView, params)
@@ -191,8 +193,14 @@ class OverlayService : Service() {
             val channel = NotificationChannel(channelId, "클릭커 서비스", NotificationManager.IMPORTANCE_LOW)
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
-            startForeground(1, Notification.Builder(this, channelId)
-                .setContentTitle("서버시간 클릭커").setSmallIcon(android.R.drawable.ic_dialog_info).build())
+            
+            val notification = Notification.Builder(this, channelId)
+                .setContentTitle("서버시간 클릭커")
+                .setContentText("터치하여 설정 열기")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build()
+                
+            startForeground(1, notification)
         }
     }
 
