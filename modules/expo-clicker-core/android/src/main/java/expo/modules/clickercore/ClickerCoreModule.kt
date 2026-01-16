@@ -7,9 +7,16 @@ import android.provider.Settings
 import android.net.Uri
 import android.os.Build
 
-class ClickerModule : Module() {
+// [핵심 해결 1] 같은 패키지라도 못 찾을 때를 대비해 강제로 임포트
+import expo.modules.clickercore.ClickerAccessibilityService
+import expo.modules.clickercore.OverlayService
+import expo.modules.clickercore.SharedData
+
+// [핵심 해결 2] 클래스 이름을 JSON 설정(ClickerCoreModule)과 똑같이 변경
+class ClickerCoreModule : Module() {
   override fun definition() = ModuleDefinition {
-    Name("ClickerModule")
+    // [핵심 해결 3] 모듈 이름도 통일
+    Name("ClickerCoreModule")
 
     Function("showOverlay") { mode: String ->
       val context = appContext.reactContext ?: return@Function false
@@ -39,6 +46,7 @@ class ClickerModule : Module() {
     }
 
     Function("performClickAt") { x: Float, y: Float ->
+      // 임포트를 명시했으므로 이제 무조건 찾습니다
       ClickerAccessibilityService.instance?.performClickAt(x, y)
       return@Function true
     }
@@ -56,6 +64,7 @@ class ClickerModule : Module() {
   }
 }
 
+// SharedData는 이 파일에 그대로 유지
 object SharedData {
     var targetX: Float = 0f
     var targetY: Float = 0f
