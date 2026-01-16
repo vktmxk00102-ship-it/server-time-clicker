@@ -2,8 +2,8 @@ name: Build Android APK (Stable & Fast)
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ] # 메인 브랜치에 푸시될 때 실행
+  workflow_dispatch: # 수동으로 빌드 실행 가능
 
 jobs:
   build:
@@ -23,26 +23,33 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle' # Gradle 라이브러리 자동 캐싱
+          # gradle-setup 액션을 별도로 사용하므로 여기서의 cache 설정은 생략 가능합니다.
 
       - name: 📦 Install dependencies
-        run: npm ci || npm install # package-lock이 없으면 install로 자동 전환
+        run: npm ci
 
       - name: 🛠 Expo Prebuild
-        run: npx expo prebuild --platform android # app.json 설정을 네이티브에 주입
+        run: npx expo prebuild --platform android --no-install
 
       - name: 🐘 Setup Gradle
-        uses: gradle/actions/setup-gradle@v4 # 빌드 캐시 활성화
+        # Gradle 캐싱 및 빌드 환경을 최적화하는 공식 액션입니다.
+        uses: gradle/actions/setup-gradle@v4
 
       - name: 🔨 Build Release APK
         run: |
           cd android
+          # gradlew 실행 권한 부여
           chmod +x gradlew
-          ./gradlew assembleRelease --parallel --build-cache
+          # --no-daemon: CI 환경에서 메모리 효율 최적화
+          # --parallel: 멀티코어 병렬 빌드로 속도 향상
+          # --build-cache: Gradle 빌드 캐시 활성화
+          # --stacktrace: 오류 발생 시 상세 로그 출력
+          ./gradlew assembleRelease --parallel --build-cache --no-daemon --stacktrace
 
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: server-time-clicker-apk
+          # 빌드된 APK 파일의 경로 (프로젝트 구조에 따라 다를 수 있으나 일반적인 경로임)
           path: android/app/build/outputs/apk/release/*.apk
-          retention-days: 3
+          retention-days: 3 # 결과물을 3일 동안 보관
