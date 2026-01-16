@@ -18,13 +18,15 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      # [확인 결과 추가됨] 실제 안드로이드 빌드 속도를 2배 이상 높여주는 단계입니다.
-      - name: 🐘 Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v4
+      # [수정] 캐시 문제 해결을 위해 임시 제거 (나중에 빌드 성공하면 다시 넣으세요)
+      # - name: 🐘 Setup Gradle Cache
+      #   uses: gradle/actions/setup-gradle@v4
 
       - name: 📦 Install dependencies
         run: |
           npm install
+          # 혹시 모듈 연결이 안 됐을까봐 강제로 연결 시도
+          npm install ./modules/expo-clicker-core 
           npx expo install expo-build-properties
 
       - name: 🛠 Setup EAS
@@ -33,10 +35,13 @@ jobs:
       - name: 🚀 Build APK (Local)
         run: |
           export NODE_ENV=production
-          eas build --local --platform android --profile preview --non-interactive
+          # [수정] --clear-cache 옵션 추가 (EAS 내부 캐시 삭제)
+          eas build --local --platform android --profile preview --non-interactive --clear-cache
         env:
           NODE_ENV: production
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Gradle에게 캐시 쓰지 말라고 강제 명령
+          GRADLE_OPTS: "-Dorg.gradle.caching=false"
 
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v4
